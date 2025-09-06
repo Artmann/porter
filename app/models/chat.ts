@@ -1,8 +1,11 @@
 import { BaseModel } from 'esix'
 
 interface Message {
-  content: string
   createdAt: number
+  parts: {
+    text: string
+    type: string
+  }[]
   role: 'user' | 'assistant' | 'system'
 }
 
