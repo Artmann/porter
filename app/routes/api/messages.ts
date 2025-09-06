@@ -1,10 +1,9 @@
 import { openai } from '@ai-sdk/openai'
 import {
+  TypeValidationError,
   convertToModelMessages,
   streamText,
-  TypeValidationError,
-  validateUIMessages,
-  type UIMessage
+  validateUIMessages
 } from 'ai'
 import { data } from 'react-router'
 
