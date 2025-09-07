@@ -3,7 +3,7 @@ import { DefaultChatTransport } from 'ai'
 import { useEffect, useState } from 'react'
 import invariant from 'tiny-invariant'
 
-import { ChatService } from '~/services/chat.server'
+import { ChatService } from '~/chat/chat-service.server'
 import type { Route } from './+types/chat'
 import { ScrollArea } from '~/components/ui/scroll-area'
 
@@ -22,8 +22,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 }
 
 export default function ChatRoute({ loaderData }: Route.ComponentProps) {
-  console.log(loaderData)
-
   const { messages, sendMessage, status } = useChat({
     id: loaderData?.chat?.id,
     messages:

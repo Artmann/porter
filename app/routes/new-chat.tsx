@@ -1,7 +1,7 @@
 import { redirect } from 'react-router'
 
 import type { Route } from './+types/new-chat'
-import { ChatService } from '~/services/chat.server'
+import { ChatService } from '~/chat/chat-service.server'
 
 export async function loader({ request }: Route.LoaderArgs) {
   const searchParams = new URL(request.url).searchParams
