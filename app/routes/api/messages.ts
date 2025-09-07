@@ -35,7 +35,14 @@ export async function action({ request }: Route.ActionArgs) {
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
     onFinish: async ({ messages }) => {
-      await chatService.updateMessages(chat.id, messages)
+      const messagesToSave = messages.map((msg: any) => ({
+        id: msg.id || crypto.randomUUID(),
+        createdAt: Date.now(),
+        content: msg.parts?.find((p: any) => p.type === 'text')?.text || '',
+        parts: msg.parts || [],
+        role: msg.role
+      }))
+      await chatService.updateMessages(chat.id, messagesToSave)
     }
   })
 }

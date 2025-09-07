@@ -1,11 +1,10 @@
 import { BaseModel } from 'esix'
 
-interface Message {
+export interface Message {
+  id: string
   createdAt: number
-  parts: {
-    text: string
-    type: string
-  }[]
+  content: string
+  parts: any[]
   role: 'user' | 'assistant' | 'system'
 }
 

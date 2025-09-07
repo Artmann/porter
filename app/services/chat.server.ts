@@ -2,7 +2,7 @@ import invariant from 'tiny-invariant'
 import { log } from 'tiny-typescript-logger'
 
 import type { ChatDto } from '~/glue/chat'
-import { Chat } from '~/models/chat'
+import { Chat, type Message } from '~/models/chat'
 
 export class ChatService {
   async create(): Promise<ChatDto> {
@@ -26,10 +26,7 @@ export class ChatService {
     return this.transformChat(chat)
   }
 
-  async updateMessages(
-    id: string,
-    messages: Chat['messages']
-  ): Promise<ChatDto> {
+  async updateMessages(id: string, messages: Message[]): Promise<ChatDto> {
     log.info(`Updating the messages for chat ${id}.`, { messages })
 
     invariant(id, 'Chat ID is required')

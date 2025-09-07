@@ -26,7 +26,13 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
 
   const { messages, sendMessage, status } = useChat({
     id: loaderData?.chat?.id,
-    messages: loaderData?.chat?.messages || [],
+    messages:
+      loaderData?.chat?.messages?.map((msg: any) => ({
+        id: msg.id || crypto.randomUUID(),
+        role: msg.role,
+        content: msg.content,
+        parts: msg.parts || [{ type: 'text', text: msg.content }]
+      })) || [],
     transport: new DefaultChatTransport({
       api: `/api/messages`
     })
@@ -72,7 +78,7 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
             {messages.map((message) => (
               <div key={message.id}>
                 {message.role === 'user' ? 'User: ' : 'AI: '}
-                {message.parts.map((part, index) =>
+                {message.parts.map((part: any, index: number) =>
                   part.type === 'text' ? (
                     <span key={index}>{part.text}</span>
                   ) : null
