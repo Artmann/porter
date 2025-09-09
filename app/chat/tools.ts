@@ -96,8 +96,63 @@ const listServices = tool({
   }
 })
 
+const waitForDeployment = tool({
+  description: 'Wait for a Railway deployment to finish and return its final status.',
+  inputSchema: z.object({
+    deploymentId: z.string().min(1, 'Deployment ID is required.'),
+    maxWaitTime: z.number().optional().default(300) // 5 minutes default
+  }),
+  execute: async ({ deploymentId, maxWaitTime }) => {
+    log.info('[Tool] Wait for Deployment', { deploymentId, maxWaitTime })
+
+    try {
+      const startTime = Date.now()
+      const maxWaitMs = maxWaitTime * 1000
+      const pollInterval = 5000 // Poll every 5 seconds
+
+      while (Date.now() - startTime < maxWaitMs) {
+        const deployment = await createRailwayClient().findDeployment(deploymentId)
+
+        if (!deployment) {
+          return { error: 'Deployment not found.' }
+        }
+
+        // Check if deployment is in a terminal state
+        const terminalStates = ['SUCCESS', 'FAILED', 'CANCELLED', 'CRASHED', 'REMOVED']
+        if (terminalStates.includes(deployment.status)) {
+          log.info('[Tool] Deployment finished', { 
+            deploymentId, 
+            status: deployment.status,
+            url: deployment.url 
+          })
+          
+          return {
+            deployment,
+            success: deployment.status === 'SUCCESS',
+            message: deployment.status === 'SUCCESS' 
+              ? `Deployment completed successfully. URL: ${deployment.url || 'No URL available yet'}` 
+              : `Deployment failed with status: ${deployment.status}`
+          }
+        }
+
+        // Wait before polling again
+        await new Promise(resolve => setTimeout(resolve, pollInterval))
+      }
+
+      return { 
+        error: `Deployment did not complete within ${maxWaitTime} seconds.`,
+        timeout: true 
+      }
+    } catch (error) {
+      console.error('Error waiting for deployment:', error)
+      return { error: 'Failed to check deployment status. Please try again later.' }
+    }
+  }
+})
+
 export const tools: ToolSet = {
   createService,
   listProjects,
-  listServices
+  listServices,
+  waitForDeployment
 }

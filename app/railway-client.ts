@@ -87,6 +87,18 @@ export class RailwayClient {
 
     return services as RailwayService[]
   }
+
+  async findDeployment(deploymentId: string): Promise<RailwayDeployment | null> {
+    const data = await this.graphQlClient.request<any>(findDeploymentQuery, {
+      deploymentId
+    })
+
+    if (!data.deployment) {
+      return null
+    }
+
+    return data.deployment as RailwayDeployment
+  }
 }
 
 const createServiceMutation = `
@@ -164,6 +176,26 @@ const listServicesQuery = `
           }
         }
       }
+    }
+  }
+`
+
+const findDeploymentQuery = `
+  query findDeployment($deploymentId: String!) {
+    deployment(id: $deploymentId) {
+      canRedeploy
+      canRollback
+      createdAt
+      deploymentStopped
+      id
+      projectId
+      snapshotId
+      staticUrl
+      status
+      statusUpdatedAt
+      suggestAddServiceDomain
+      updatedAt
+      url
     }
   }
 `
