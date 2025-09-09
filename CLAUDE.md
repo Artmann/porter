@@ -90,3 +90,4 @@ Required in `.env`:
   codes
 - Railway API requires Bearer token authentication
 - Tests should mock external dependencies rather than making real API calls
+- Separate third party and local imports. Third party ones first.

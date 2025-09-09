@@ -60,6 +60,8 @@ const createSystemPrompt = (tools: ToolSet) => `
   - When deploying a service from a repository, use the following format: "railwayapp-templates/django".
   - When deploying a service, wait for it to be deployed before sharing the URL with the user.
   - Before starting, create a todo list of steps you need to take to complete the user's request.
+  - Be concise and to the point.
+  - Only ask for confirmation for destructive actions.
 
   You have access to the following tools:
   ${Object.keys(tools)
