@@ -1,5 +1,9 @@
 {
   "name": "porter-app",
+  "description": "Chat with Railway services",
+  "author": "Christoffer Artmann <artgaard@gmail.com>",
+  "version": "1.0.",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
