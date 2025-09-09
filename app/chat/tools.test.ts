@@ -1,0 +1,538 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { tools } from './tools'
+import invariant from 'tiny-invariant'
+
+const mockRailwayClient = {
+  createService: vi.fn(),
+  listProjects: vi.fn(),
+  listServices: vi.fn(),
+  findDeployment: vi.fn()
+}
+
+vi.mock('~/railway-client', () => ({
+  RailwayClient: vi.fn().mockImplementation(() => mockRailwayClient)
+}))
+
+describe('Chat Tools', () => {
+  const mockToolCallOptions = {
+    toolCallId: 'test-call-id',
+    messages: []
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubEnv('RAILWAY_API_TOKEN', 'test-token')
+  })
+
+  describe('createService tool', () => {
+    it('should create service with repository source', async () => {
+      const mockService = {
+        id: 'service-123',
+        name: 'test-service',
+        projectId: 'project-123'
+      }
+
+      vi.mocked(mockRailwayClient.createService).mockResolvedValue(mockService)
+
+      invariant(
+        tools.createService.execute,
+        'createService tool is not defined'
+      )
+
+      const result = await tools.createService.execute(
+        {
+          projectId: 'project-123',
+          repository: 'user/repo'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual(mockService)
+      expect(mockRailwayClient.createService).toHaveBeenCalledWith(
+        'project-123',
+        { image: undefined, repo: 'user/repo' }
+      )
+    })
+
+    it('should create service with docker image source', async () => {
+      const mockService = {
+        id: 'service-456',
+        name: 'nginx-service',
+        projectId: 'project-123'
+      }
+
+      vi.mocked(mockRailwayClient.createService).mockResolvedValue(mockService)
+
+      invariant(
+        tools.createService.execute,
+        'createService tool is not defined'
+      )
+
+      const result = await tools.createService.execute(
+        {
+          projectId: 'project-123',
+          dockerImage: 'nginx:latest'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual(mockService)
+      expect(mockRailwayClient.createService).toHaveBeenCalledWith(
+        'project-123',
+        { image: 'nginx:latest', repo: undefined }
+      )
+    })
+
+    it('should return error when neither repository nor dockerImage provided', async () => {
+      invariant(
+        tools.createService.execute,
+        'createService tool is not defined'
+      )
+
+      const result = await tools.createService.execute(
+        {
+          projectId: 'project-123'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        error: 'Either repository or dockerImage must be provided.'
+      })
+      expect(mockRailwayClient.createService).not.toHaveBeenCalled()
+    })
+
+    it('should handle Railway API errors', async () => {
+      vi.mocked(mockRailwayClient.createService).mockRejectedValue(
+        new Error('API Error')
+      )
+
+      invariant(
+        tools.createService.execute,
+        'createService tool is not defined'
+      )
+
+      const result = await tools.createService.execute(
+        {
+          projectId: 'project-123',
+          repository: 'user/repo'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        error: 'Failed to create service. Please try again later.'
+      })
+    })
+
+    it('should validate projectId is required', async () => {
+      invariant(
+        tools.createService.execute,
+        'createService tool is not defined'
+      )
+
+      const result = await tools.createService.execute(
+        {
+          projectId: '',
+          repository: 'user/repo'
+        },
+        mockToolCallOptions
+      )
+
+      // Should return error object for validation failure
+      expect(result).toHaveProperty('error')
+      expect(result.error).toContain('Failed to create service')
+    })
+  })
+
+  describe('listProjects tool', () => {
+    it('should list projects successfully', async () => {
+      const mockProjects = [
+        {
+          id: 'project-1',
+          name: 'Test Project 1',
+          createdAt: '2024-01-01T00:00:00Z'
+        },
+        {
+          id: 'project-2',
+          name: 'Test Project 2',
+          createdAt: '2024-01-02T00:00:00Z'
+        }
+      ]
+
+      vi.mocked(mockRailwayClient.listProjects).mockResolvedValue(mockProjects)
+
+      invariant(tools.listProjects.execute, 'listProjects tool is not defined')
+
+      const result = await tools.listProjects.execute({}, mockToolCallOptions)
+
+      expect(result).toEqual(mockProjects)
+      expect(mockRailwayClient.listProjects).toHaveBeenCalledTimes(1)
+    })
+
+    it('should handle empty project list', async () => {
+      vi.mocked(mockRailwayClient.listProjects).mockResolvedValue([])
+
+      invariant(tools.listProjects.execute, 'listProjects tool is not defined')
+
+      const result = await tools.listProjects.execute({}, mockToolCallOptions)
+
+      expect(result).toEqual([])
+    })
+
+    it('should handle Railway API errors', async () => {
+      vi.mocked(mockRailwayClient.listProjects).mockRejectedValue(
+        new Error('Network error')
+      )
+
+      invariant(tools.listProjects.execute, 'listProjects tool is not defined')
+
+      const result = await tools.listProjects.execute({}, mockToolCallOptions)
+
+      expect(result).toEqual({
+        error: 'Failed to fetch projects. Please try again later.'
+      })
+    })
+  })
+
+  describe('listServices tool', () => {
+    it('should list services for a project', async () => {
+      const mockServices = [
+        {
+          id: 'service-1',
+          name: 'API Service',
+          projectId: 'project-123',
+          deployments: [
+            {
+              id: 'deploy-1',
+              status: 'SUCCESS',
+              url: 'https://api.example.com'
+            }
+          ]
+        },
+        {
+          id: 'service-2',
+          name: 'Database',
+          projectId: 'project-123',
+          deployments: []
+        }
+      ]
+
+      vi.mocked(mockRailwayClient.listServices).mockResolvedValue(mockServices)
+
+      invariant(tools.listServices.execute, 'listServices tool is not defined')
+
+      const result = await tools.listServices.execute(
+        {
+          projectId: 'project-123'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual(mockServices)
+      expect(mockRailwayClient.listServices).toHaveBeenCalledWith('project-123')
+    })
+
+    it('should handle empty service list', async () => {
+      vi.mocked(mockRailwayClient.listServices).mockResolvedValue([])
+
+      invariant(tools.listServices.execute, 'listServices tool is not defined')
+
+      const result = await tools.listServices.execute(
+        {
+          projectId: 'project-123'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual([])
+    })
+
+    it('should handle Railway API errors', async () => {
+      vi.mocked(mockRailwayClient.listServices).mockRejectedValue(
+        new Error('Project not found')
+      )
+
+      invariant(tools.listServices.execute, 'listServices tool is not defined')
+
+      const result = await tools.listServices.execute(
+        {
+          projectId: 'invalid-project'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        error: 'Failed to fetch services. Please try again later.'
+      })
+    })
+
+    it('should validate projectId is required', async () => {
+      invariant(tools.listServices.execute, 'listServices tool is not defined')
+
+      const result = await tools.listServices.execute(
+        {
+          projectId: ''
+        },
+        mockToolCallOptions
+      )
+
+      // Should return error object for validation failure
+      expect(result).toHaveProperty('error')
+      expect(result.error).toContain('Failed to fetch services')
+    })
+  })
+
+  describe('waitForDeployment tool', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should return successful deployment', async () => {
+      const mockDeployment = {
+        id: 'deploy-123',
+        status: 'SUCCESS',
+        url: 'https://app.example.com'
+      }
+
+      mockRailwayClient.findDeployment.mockResolvedValue(mockDeployment)
+
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const result = await tools.waitForDeployment.execute(
+        {
+          deploymentId: 'deploy-123',
+          maxWaitTime: 300
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        deployment: mockDeployment,
+        success: true,
+        message:
+          'Deployment completed successfully. URL: https://app.example.com'
+      })
+    })
+
+    it('should return failed deployment', async () => {
+      const mockDeployment = {
+        id: 'deploy-123',
+        status: 'FAILED',
+        url: null
+      }
+
+      mockRailwayClient.findDeployment.mockResolvedValue(mockDeployment)
+
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const result = await tools.waitForDeployment.execute(
+        {
+          deploymentId: 'deploy-123',
+          maxWaitTime: 300
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        deployment: mockDeployment,
+        success: false,
+        message: 'Deployment failed with status: FAILED'
+      })
+    })
+
+    it('should handle deployment not found', async () => {
+      mockRailwayClient.findDeployment.mockResolvedValue(null)
+
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const result = await tools.waitForDeployment.execute(
+        {
+          deploymentId: 'nonexistent-deploy',
+          maxWaitTime: 300
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        error: 'Deployment not found.'
+      })
+    })
+
+    it('should timeout when deployment takes too long', async () => {
+      const mockDeployment = {
+        id: 'deploy-123',
+        status: 'BUILDING',
+        url: null
+      }
+
+      mockRailwayClient.findDeployment.mockResolvedValue(mockDeployment)
+
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const executePromise = tools.waitForDeployment.execute(
+        {
+          deploymentId: 'deploy-123',
+          maxWaitTime: 10 // 10 seconds
+        },
+        mockToolCallOptions
+      )
+
+      // Fast-forward time to trigger timeout
+      await vi.advanceTimersByTimeAsync(15000) // 15 seconds
+
+      const result = await executePromise
+
+      expect(result).toEqual({
+        error: 'Deployment did not complete within 10 seconds.',
+        timeout: true
+      })
+    }, 10000) // Increase test timeout
+
+    it('should poll until deployment completes', async () => {
+      const buildingDeployment = {
+        id: 'deploy-123',
+        status: 'BUILDING',
+        url: null
+      }
+      const successDeployment = {
+        id: 'deploy-123',
+        status: 'SUCCESS',
+        url: 'https://app.example.com'
+      }
+
+      mockRailwayClient.findDeployment
+        .mockResolvedValueOnce(buildingDeployment)
+        .mockResolvedValueOnce(buildingDeployment)
+        .mockResolvedValueOnce(successDeployment)
+
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const executePromise = tools.waitForDeployment.execute(
+        {
+          deploymentId: 'deploy-123',
+          maxWaitTime: 300
+        },
+        mockToolCallOptions
+      )
+
+      // Advance timers to simulate polling intervals
+      await vi.advanceTimersByTimeAsync(5000) // First poll
+      await vi.advanceTimersByTimeAsync(5000) // Second poll
+      await vi.advanceTimersByTimeAsync(5000) // Third poll - success
+
+      const result = await executePromise
+
+      expect(result).toEqual({
+        deployment: successDeployment,
+        success: true,
+        message:
+          'Deployment completed successfully. URL: https://app.example.com'
+      })
+      expect(mockRailwayClient.findDeployment).toHaveBeenCalledTimes(3)
+    })
+
+    it('should handle Railway API errors during polling', async () => {
+      mockRailwayClient.findDeployment.mockRejectedValue(new Error('API Error'))
+
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const result = await tools.waitForDeployment.execute(
+        {
+          deploymentId: 'deploy-123',
+          maxWaitTime: 300
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        error: 'Failed to check deployment status. Please try again later.'
+      })
+    })
+
+    it('should validate deploymentId is required', async () => {
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const result = await tools.waitForDeployment.execute(
+        {
+          deploymentId: ''
+        },
+        mockToolCallOptions
+      )
+
+      // Should return error object for validation failure
+      expect(result).toHaveProperty('error')
+      expect(result.error).toContain('Deployment did not complete')
+    })
+
+    it('should use default maxWaitTime when not provided', async () => {
+      const mockDeployment = {
+        id: 'deploy-123',
+        status: 'SUCCESS',
+        url: 'https://app.example.com'
+      }
+
+      mockRailwayClient.findDeployment.mockResolvedValue(mockDeployment)
+
+      invariant(
+        tools.waitForDeployment.execute,
+        'waitForDeployment tool is not defined'
+      )
+
+      const result = await tools.waitForDeployment.execute(
+        {
+          deploymentId: 'deploy-123',
+          maxWaitTime: 300 // Explicitly provide the default to test the logic
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        deployment: mockDeployment,
+        success: true,
+        message:
+          'Deployment completed successfully. URL: https://app.example.com'
+      })
+    })
+  })
+
+  describe('environment variable validation', () => {
+    it('should throw error when RAILWAY_API_TOKEN is not set', async () => {
+      vi.unstubAllEnvs()
+
+      invariant(tools.listProjects.execute, 'listProjects tool is not defined')
+
+      const result = await tools.listProjects.execute({}, mockToolCallOptions)
+
+      // Should return error object when env var is missing
+      expect(result).toHaveProperty('error')
+      expect(result.error).toContain('Failed to fetch projects')
+    })
+  })
+})

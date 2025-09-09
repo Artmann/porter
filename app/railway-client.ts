@@ -88,7 +88,9 @@ export class RailwayClient {
     return services as RailwayService[]
   }
 
-  async findDeployment(deploymentId: string): Promise<RailwayDeployment | null> {
+  async findDeployment(
+    deploymentId: string
+  ): Promise<RailwayDeployment | null> {
     const data = await this.graphQlClient.request<any>(findDeploymentQuery, {
       deploymentId
     })
