@@ -24,4 +24,4 @@ EXPOSE 3000
 ENV PORT=3000
 
 # Run the app with Node.js for better SSR compatibility
-CMD ["node", "./build/server/index.js"]
+CMD ["npm", "run", "start"]
