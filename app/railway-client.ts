@@ -35,6 +35,17 @@ export interface RailwayDeployment {
   url: string | null
 }
 
+export interface RailwayDomain {
+  id: string
+  domain?: string
+}
+
+export interface RailwayEnvironment {
+  id: string
+  name: string
+  isEphemeral: boolean
+}
+
 export interface ServiceCreateInput {
   projectId: string
   source?: {
@@ -134,6 +145,33 @@ export class RailwayClient {
     }
 
     return data.service.deployments.edges[0].node.id
+  }
+
+  async createServiceDomain(
+    environmentId: string,
+    serviceId: string,
+    targetPort: number
+  ): Promise<RailwayDomain> {
+    const data = await this.graphQlClient.request<any>(
+      serviceDomainCreateMutation,
+      {
+        input: {
+          environmentId,
+          serviceId,
+          targetPort
+        }
+      }
+    )
+
+    return data.serviceDomainCreate as RailwayDomain
+  }
+
+  async listEnvironments(projectId: string): Promise<RailwayEnvironment[]> {
+    const data = await this.graphQlClient.request<any>(listEnvironmentsQuery, {
+      projectId
+    })
+
+    return data.project.environments.edges.map((e: any) => e.node)
   }
 }
 
@@ -241,6 +279,31 @@ const findDeploymentQuery = `
       suggestAddServiceDomain
       updatedAt
       url
+    }
+  }
+`
+
+const serviceDomainCreateMutation = `
+  mutation serviceDomainCreate($input: ServiceDomainCreateInput!) {
+    serviceDomainCreate(input: $input) {
+      id
+      domain
+    }
+  }
+`
+
+const listEnvironmentsQuery = `
+  query listEnvironments($projectId: String!) {
+    project(id: $projectId) {
+      environments {
+        edges {
+          node {
+            id
+            name
+            isEphemeral
+          }
+        }
+      }
     }
   }
 `

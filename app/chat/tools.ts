@@ -205,10 +205,67 @@ const getServiceDeployment = tool({
   }
 })
 
+const generateDomain = tool({
+  description: 'Generate a public domain for a Railway service.',
+  inputSchema: z.object({
+    environmentId: z.string().min(1, 'Environment ID is required.'),
+    serviceId: z.string().min(1, 'Service ID is required.'),
+    targetPort: z
+      .number()
+      .int()
+      .min(1)
+      .max(65535, 'Target port must be between 1 and 65535.')
+  }),
+  execute: async ({ environmentId, serviceId, targetPort }) => {
+    log.info('[Tool] Generate Domain', { environmentId, serviceId, targetPort })
+
+    try {
+      const domain = await createRailwayClient().createServiceDomain(
+        environmentId,
+        serviceId,
+        targetPort
+      )
+
+      return {
+        domain,
+        message: `Domain created successfully: ${domain.domain || 'Domain is being generated'}`
+      }
+    } catch (error) {
+      console.error('Error creating domain:', error)
+      return { error: 'Failed to create domain. Please try again later.' }
+    }
+  }
+})
+
+const listEnvironments = tool({
+  description: 'List all environments for a Railway project.',
+  inputSchema: z.object({
+    projectId: z.string().min(1, 'Project ID is required.')
+  }),
+  execute: async ({ projectId }) => {
+    log.info('[Tool] List Environments', { projectId })
+
+    try {
+      const environments =
+        await createRailwayClient().listEnvironments(projectId)
+
+      return {
+        environments,
+        message: `Found ${environments.length} environment(s) for project`
+      }
+    } catch (error) {
+      console.error('Error listing environments:', error)
+      return { error: 'Failed to list environments. Please try again later.' }
+    }
+  }
+})
+
 export const tools: ToolSet = {
   createService,
   listProjects,
   listServices,
   waitForDeployment,
-  getServiceDeployment
+  getServiceDeployment,
+  generateDomain,
+  listEnvironments
 }

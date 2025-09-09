@@ -7,7 +7,8 @@ const mockRailwayClient = {
   createService: vi.fn(),
   listProjects: vi.fn(),
   listServices: vi.fn(),
-  findDeployment: vi.fn()
+  findDeployment: vi.fn(),
+  createServiceDomain: vi.fn()
 }
 
 vi.mock('~/railway-client', () => ({
@@ -30,7 +31,8 @@ describe('Chat Tools', () => {
       const mockService = {
         id: 'service-123',
         name: 'test-service',
-        projectId: 'project-123'
+        projectId: 'project-123',
+        deployments: []
       }
 
       vi.mocked(mockRailwayClient.createService).mockResolvedValue(mockService)
@@ -48,7 +50,11 @@ describe('Chat Tools', () => {
         mockToolCallOptions
       )
 
-      expect(result).toEqual(mockService)
+      expect(result).toEqual({
+        ...mockService,
+        latestDeploymentId: null,
+        message: 'Service created successfully. No deployment initiated yet.'
+      })
       expect(mockRailwayClient.createService).toHaveBeenCalledWith(
         'project-123',
         { image: undefined, repo: 'user/repo' }
@@ -59,7 +65,8 @@ describe('Chat Tools', () => {
       const mockService = {
         id: 'service-456',
         name: 'nginx-service',
-        projectId: 'project-123'
+        projectId: 'project-123',
+        deployments: []
       }
 
       vi.mocked(mockRailwayClient.createService).mockResolvedValue(mockService)
@@ -77,7 +84,11 @@ describe('Chat Tools', () => {
         mockToolCallOptions
       )
 
-      expect(result).toEqual(mockService)
+      expect(result).toEqual({
+        ...mockService,
+        latestDeploymentId: null,
+        message: 'Service created successfully. No deployment initiated yet.'
+      })
       expect(mockRailwayClient.createService).toHaveBeenCalledWith(
         'project-123',
         { image: 'nginx:latest', repo: undefined }
@@ -519,6 +530,132 @@ describe('Chat Tools', () => {
         message:
           'Deployment completed successfully. URL: https://app.example.com'
       })
+    })
+  })
+
+  describe('generateDomain tool', () => {
+    it('should create domain successfully', async () => {
+      const mockDomain = {
+        id: 'domain-123',
+        domain: 'app-abc123.railway.app'
+      }
+
+      vi.mocked(mockRailwayClient.createServiceDomain).mockResolvedValue(
+        mockDomain
+      )
+
+      invariant(
+        tools.generateDomain.execute,
+        'generateDomain tool is not defined'
+      )
+
+      const result = await tools.generateDomain.execute(
+        {
+          environmentId: 'env-123',
+          serviceId: 'service-123',
+          targetPort: 8080
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        domain: mockDomain,
+        message: 'Domain created successfully: app-abc123.railway.app'
+      })
+      expect(mockRailwayClient.createServiceDomain).toHaveBeenCalledWith(
+        'env-123',
+        'service-123',
+        8080
+      )
+    })
+
+    it('should handle domain creation without domain field', async () => {
+      const mockDomain = {
+        id: 'domain-456'
+      }
+
+      vi.mocked(mockRailwayClient.createServiceDomain).mockResolvedValue(
+        mockDomain
+      )
+
+      invariant(
+        tools.generateDomain.execute,
+        'generateDomain tool is not defined'
+      )
+
+      const result = await tools.generateDomain.execute(
+        {
+          environmentId: 'env-123',
+          serviceId: 'service-123',
+          targetPort: 3000
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        domain: mockDomain,
+        message: 'Domain created successfully: Domain is being generated'
+      })
+    })
+
+    it('should handle Railway API errors', async () => {
+      vi.mocked(mockRailwayClient.createServiceDomain).mockRejectedValue(
+        new Error('Service not found')
+      )
+
+      invariant(
+        tools.generateDomain.execute,
+        'generateDomain tool is not defined'
+      )
+
+      const result = await tools.generateDomain.execute(
+        {
+          environmentId: 'env-invalid',
+          serviceId: 'service-invalid',
+          targetPort: 8080
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        error: 'Failed to create domain. Please try again later.'
+      })
+    })
+
+    it('should validate required parameters', async () => {
+      invariant(
+        tools.generateDomain.execute,
+        'generateDomain tool is not defined'
+      )
+
+      const result = await tools.generateDomain.execute(
+        {
+          environmentId: '',
+          serviceId: 'service-123',
+          targetPort: 8080
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toHaveProperty('error')
+    })
+
+    it('should validate port range', async () => {
+      invariant(
+        tools.generateDomain.execute,
+        'generateDomain tool is not defined'
+      )
+
+      const result = await tools.generateDomain.execute(
+        {
+          environmentId: 'env-123',
+          serviceId: 'service-123',
+          targetPort: 70000 // Invalid port number
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toHaveProperty('error')
     })
   })
 
