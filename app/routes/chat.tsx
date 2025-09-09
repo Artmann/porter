@@ -114,7 +114,7 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full text-sm">
       <div className="flex flex-col w-full h-screen overflow-hidden">
         <div
           className="w-full flex-1 min-h-0 overflow-y-auto"
@@ -200,7 +200,7 @@ const ChatMessages = memo(function ChatMessages({
 
 function UserMessage({ message }: { message: UIMessage }): ReactElement {
   return (
-    <div className="bg-gray-50 px-4 py-2 rounded-md">
+    <div className="bg-gray-50 px-4 py-2 rounded-md prose prose-sm">
       <Markdown>
         {(message.parts || [])
           .filter((part) => part.type === 'text')
@@ -213,7 +213,7 @@ function UserMessage({ message }: { message: UIMessage }): ReactElement {
 
 function AssistantMessage({ message }: { message: UIMessage }): ReactElement {
   return (
-    <div className="px-4 py-2 rounded-md">
+    <div className="px-4 py-2 rounded-md prose prose-sm">
       <Markdown>
         {(message.parts || [])
           .filter((part) => part.type === 'text')
