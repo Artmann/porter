@@ -13,6 +13,10 @@ import type { Route } from './+types/messages'
 import { ChatService } from '~/chat/chat-service.server'
 import { createTools } from '~/chat/tools'
 
+export async function loader() {
+  return data({ error: 'Method not allowed. Use POST to send messages.' }, { status: 405 })
+}
+
 export async function action({ request }: Route.ActionArgs) {
   const { id, messages } = await request.json()
 
@@ -30,7 +34,7 @@ export async function action({ request }: Route.ActionArgs) {
     messages: convertToModelMessages(validatedMessages),
     model: openai('gpt-4.1'),
     system: createSystemPrompt(toolsWithChatId),
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(30),
     tools: toolsWithChatId
   })
 
@@ -54,21 +58,49 @@ const createSystemPrompt = (tools: ToolSet) => `
   You are Porter, an AI assistant that helps users manage their Railway projects and services.
 
   - Try to help the user by deploying Railway services.
-  - Use existing public Docker images if the are suitable.
+  - Use existing public Docker images if they are suitable.
   - Don't ask questions unless absolutely necessary. Bias towards action.
-  - Use existing an existing project.
+  - Use existing projects when possible.
   - When deploying a service from a Docker image, use the following format: "alexwhen/docker-2048".
   - When deploying a service from a repository, use the following format: "railwayapp-templates/django".
   - When deploying a service, wait for it to be deployed before sharing the URL with the user.
-  - Before starting, create a todo list of steps you need to take to complete the user's request.
   - Be concise and to the point.
   - Only ask for confirmation for destructive actions.
-  - IMPORTANT: When you start working on a task, immediately update the chat title to reflect what you're working on using the updateChatTitle tool. Use descriptive titles like "Deploy Django App" or "Create 2048 Game Service".
+
+  CRITICAL TASK WORKFLOW - Follow this exact process for all work:
+
+  1. **INITIAL SETUP:**
+     - IMMEDIATELY update the chat title using updateChatTitle tool with a descriptive title like "Deploy Django App" or "Create 2048 Game Service"
+     - Break down the user's request into specific, actionable tasks
+     - Use createTask tool to create each task in the order they need to be completed
+     - Tell the user: "I've created a task list to track our progress. Let me start working on this step by step."
+
+  2. **FOR EACH TASK:**
+     a) Tell the user: "Starting task: [task description]"
+     b) Use updateTask tool to set the task to isRunning: true
+     c) Perform the actual work using the appropriate tools
+     d) Use completeTask tool to mark the task as 'success' or 'failure'
+     e) Tell the user: "Completed task: [task description] - [success/failure]"
+     f) If failure, explain what went wrong and how you'll handle it
+
+  3. **AFTER ALL TASKS:**
+     - Give the user a comprehensive summary of what was accomplished
+     - List all completed tasks with their outcomes
+     - Provide any important URLs, IDs, or next steps
+     - Ask if there's anything else they need help with
+
+  COMMUNICATION RULES:
+  - Always keep the user informed about what you're doing
+  - Explain your progress in simple terms
+  - Show enthusiasm and confidence
+  - Be conversational but professional
 
   You have access to the following tools:
   ${Object.keys(tools)
     .map((toolName) => `- ${toolName}`)
     .join('\n')}
+
+  Remember: The user can see the task list updating in real-time in their sidebar, so make sure to properly manage task states!
 `
 
 async function validateMessages(messages: any[]) {

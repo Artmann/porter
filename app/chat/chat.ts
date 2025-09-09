@@ -1,3 +1,5 @@
+import type { Task } from '~/models/chat'
+
 export interface ChatDto {
   id: string
   title: string
@@ -9,4 +11,5 @@ export interface ChatDto {
     }[]
     role: 'user' | 'assistant' | 'system'
   }[]
+  tasks: Task[]
 }

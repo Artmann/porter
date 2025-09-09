@@ -14,9 +14,13 @@ import invariant from 'tiny-invariant'
 import { ChatService } from '~/chat/chat-service.server'
 import { Textarea } from '~/components/ui/textarea'
 import { Button } from '~/components/ui/button'
+import { Badge } from '~/components/ui/badge'
+import { ScrollArea } from '~/components/ui/scroll-area'
 import { cn } from '~/lib/utils'
 import type { Route } from './+types/chat'
-import { ArrowBigUp } from 'lucide-react'
+import { ArrowBigUp, Clock, CheckCircle, XCircle, Loader2, ListTodo, X } from 'lucide-react'
+import type { ChatDto } from '~/chat/chat'
+import type { Task } from '~/models/chat'
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const chatId = params.chatId
@@ -54,6 +58,9 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
       api: `/api/messages`
     })
   })
+
+  const [tasks, setTasks] = useState<ChatDto['tasks']>(loaderData?.chat?.tasks || [])
+  const [isMobileTasksOpen, setIsMobileTasksOpen] = useState(false)
 
   const [input, setInput] = useState('')
 
@@ -113,40 +120,41 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
     scrollToTheBottomOfTheMessages()
   }, [scrollToTheBottomOfTheMessages])
 
-  // Poll for chat title updates
   useEffect(() => {
     if (!loaderData?.chat?.id) {
       return
     }
 
-    const pollInterval = 5000 // Poll every 5 seconds
+    const pollInterval = 1_000
+    
     let intervalId: NodeJS.Timeout
 
     const pollForUpdates = async () => {
       try {
         const response = await fetch(`/api/chats/${loaderData.chat!.id}`)
+        
         if (response.ok) {
           const data = await response.json()
+        
           if (data.chat.title !== loaderData.chat!.title) {
-            // Update document title
             document.title = `${data.chat.title} - Porter`
           }
+
+          setTasks(data.chat.tasks || [])
         }
       } catch (error) {
-        // Silently handle polling errors
         console.warn('Failed to poll for chat updates:', error)
       }
     }
 
     intervalId = setInterval(pollForUpdates, pollInterval)
 
-    // Clean up interval on unmount
     return () => {
       if (intervalId) {
         clearInterval(intervalId)
       }
     }
-  }, [loaderData?.chat?.id, loaderData?.chat?.title])
+  }, [loaderData?.chat?.id, loaderData?.chat?.title, loaderData.chat])
 
   if (!loaderData?.chat) {
     return (
@@ -157,60 +165,95 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <div className="w-full text-sm">
-      <div className="flex flex-col w-full h-screen overflow-hidden">
-        <div
-          className="w-full flex-1 min-h-0 overflow-y-auto"
-          ref={chatMessagesRef}
-        >
+    <div className="w-full text-sm h-screen overflow-hidden relative">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] h-full">
+        {/* Chat Section */}
+        <div className="flex flex-col w-full h-full overflow-hidden">
           <div
-            className={`
-            w-full max-w-4xl
-            mx-auto p-4
-          `}
+            className="w-full flex-1 min-h-0 overflow-y-auto"
+            ref={chatMessagesRef}
           >
-            <ChatMessages messages={messages} />
+            <div className="w-full max-w-4xl mx-auto p-4">
+              <ChatMessages messages={messages} />
+            </div>
+          </div>
+
+          <div className="w-full max-w-4xl mx-auto p-4">
+            <form
+              ref={formRef}
+              onSubmit={handleSubmit}
+            >
+              <div className="flex flex-col gap-2">
+                <div>
+                  <Textarea
+                    className="max-h-[10rem]"
+                    disabled={status !== 'ready'}
+                    placeholder="Ask anything"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <div className="lg:hidden">
+                    {tasks.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsMobileTasksOpen(true)}
+                        className="gap-2"
+                      >
+                        <ListTodo className="h-4 w-4" />
+                        {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                      </Button>
+                    )}
+                  </div>
+                  <div>
+                    <Button
+                      disabled={status !== 'ready' || input.trim().length === 0}
+                      size="icon"
+                      type="submit"
+                    >
+                      <ArrowBigUp />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
 
-        <div
-          className={`
-            w-full max-w-4xl
-            mx-auto p-4
-          `}
-        >
-          <form
-            ref={formRef}
-            onSubmit={handleSubmit}
-          >
-            <div className="flex flex-col gap-2">
-              <div>
-                <Textarea
-                  className="max-h-[10rem]"
-                  disabled={status !== 'ready'}
-                  placeholder="Ask anything"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-              </div>
-
-              <div className="flex justify-between items-center">
-                <div></div>
-                <div>
-                  <Button
-                    disabled={status !== 'ready' || input.trim().length === 0}
-                    size="icon"
-                    type="submit"
-                  >
-                    <ArrowBigUp />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </form>
+        {/* Desktop Task Sidebar */}
+        <div className="hidden lg:flex flex-col border-l bg-gray-50/50 h-full">
+          <TaskList tasks={tasks} />
         </div>
       </div>
+
+      {/* Mobile Task Overlay */}
+      {isMobileTasksOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div 
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            onClick={() => setIsMobileTasksOpen(false)}
+          />
+          <div className="absolute right-0 top-0 h-full w-80 max-w-[90vw] bg-gray-50/50 border-l">
+            <div className="flex items-center justify-between p-4 border-b bg-white">
+              <h2 className="font-semibold text-lg">Tasks</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMobileTasksOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="h-full overflow-hidden pb-16">
+              <TaskList tasks={tasks} isMobile />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -263,6 +306,121 @@ function AssistantMessage({ message }: { message: UIMessage }): ReactElement {
           .map((part) => part.text)
           .join('\n')}
       </Markdown>
+    </div>
+  )
+}
+
+function TaskList({ tasks, isMobile = false }: { tasks: Task[]; isMobile?: boolean }): ReactElement {
+  return (
+    <div className="flex flex-col h-full">
+      {!isMobile && (
+        <div className="p-4 border-b bg-white">
+          <h2 className="font-semibold text-lg">Tasks</h2>
+          <p className="text-sm text-muted-foreground">
+            {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+      )}
+      
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-3">
+          {tasks.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              <Clock className="mx-auto h-12 w-12 mb-2 opacity-50" />
+              <p className="text-sm">No tasks yet</p>
+              <p className="text-xs">Tasks will appear here as work begins</p>
+            </div>
+          ) : (
+            tasks.map((task) => (
+              <TaskItem key={task.id} task={task} />
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
+
+function TaskItem({ task }: { task: Task }): ReactElement {
+  const getTaskIcon = () => {
+    if (task.isRunning) {
+      return <Loader2 className="h-4 w-4 animate-spin" />
+    }
+    
+    switch (task.state) {
+      case 'success':
+        return <CheckCircle className="h-4 w-4" />
+      case 'failure':
+        return <XCircle className="h-4 w-4" />
+      case 'pending':
+      default:
+        return <Clock className="h-4 w-4" />
+    }
+  }
+
+  const getTaskBadgeVariant = () => {
+    if (task.isRunning) return 'secondary'
+    
+    switch (task.state) {
+      case 'success':
+        return 'default' // Green
+      case 'failure':
+        return 'destructive' // Red
+      case 'pending':
+      default:
+        return 'outline' // Gray
+    }
+  }
+
+  const getTaskStatus = () => {
+    if (task.isRunning) return 'Running'
+    
+    switch (task.state) {
+      case 'success':
+        return 'Complete'
+      case 'failure':
+        return 'Failed'
+      case 'pending':
+      default:
+        return 'Pending'
+    }
+  }
+
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
+  }
+
+  return (
+    <div className="bg-white rounded-lg border p-3 space-y-2 hover:shadow-sm transition-shadow">
+      <div className="flex items-start gap-2">
+        <div className={cn(
+          "mt-0.5 flex-shrink-0",
+          task.isRunning && "text-blue-600",
+          task.state === 'success' && "text-green-600",
+          task.state === 'failure' && "text-red-600",
+          task.state === 'pending' && "text-gray-400"
+        )}>
+          {getTaskIcon()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium leading-relaxed break-words">
+            {task.text}
+          </p>
+        </div>
+      </div>
+      
+      <div className="flex items-center justify-between">
+        <Badge variant={getTaskBadgeVariant()} className="text-xs">
+          {getTaskStatus()}
+        </Badge>
+        <span className="text-xs text-muted-foreground">
+          {formatTime(task.updatedAt)}
+        </span>
+      </div>
     </div>
   )
 }

@@ -71,6 +71,33 @@ const createService = tool({
   }
 })
 
+const createTaskTool = (chatId: string) =>
+  tool({
+    description: 'Create a new task in the current chat conversation.',
+    inputSchema: z.object({
+      text: z
+        .string()
+        .min(1, 'Task text is required.')
+        .max(200, 'Task text must be 200 characters or less.')
+    }),
+    execute: async ({ text }) => {
+      log.info('[Tool] Create Task', { chatId, text })
+
+      try {
+        const chatService = new ChatService()
+        const updatedChat = await chatService.addTask(chatId, text)
+
+        return {
+          chat: updatedChat,
+          message: `Task created: "${text}"`
+        }
+      } catch (error) {
+        console.error('Error creating task:', error)
+        return { error: 'Failed to create task. Please try again later.' }
+      }
+    }
+  })
+
 const createUpdateChatTitleTool = (chatId: string) =>
   tool({
     description: 'Update the title of the current chat conversation.',
@@ -94,6 +121,89 @@ const createUpdateChatTitleTool = (chatId: string) =>
       } catch (error) {
         console.error('Error updating chat title:', error)
         return { error: 'Failed to update chat title. Please try again later.' }
+      }
+    }
+  })
+
+const createUpdateTaskTool = (chatId: string) =>
+  tool({
+    description: 'Update a task in the current chat conversation.',
+    inputSchema: z.object({
+      taskId: z.string().min(1, 'Task ID is required.'),
+      text: z.string().optional(),
+      isRunning: z.boolean().optional(),
+      state: z.enum(['pending', 'failure', 'success']).optional()
+    }),
+    execute: async ({ taskId, text, isRunning, state }) => {
+      log.info('[Tool] Update Task', { chatId, taskId, text, isRunning, state })
+
+      try {
+        const chatService = new ChatService()
+        const updates: any = {}
+        if (text !== undefined) updates.text = text
+        if (isRunning !== undefined) updates.isRunning = isRunning
+        if (state !== undefined) updates.state = state
+
+        const updatedChat = await chatService.updateTask(chatId, taskId, updates)
+
+        return {
+          chat: updatedChat,
+          message: `Task updated successfully`
+        }
+      } catch (error) {
+        console.error('Error updating task:', error)
+        return { error: 'Failed to update task. Please try again later.' }
+      }
+    }
+  })
+
+const createCompleteTaskTool = (chatId: string) =>
+  tool({
+    description: 'Complete a task in the current chat conversation with success or failure state.',
+    inputSchema: z.object({
+      taskId: z.string().min(1, 'Task ID is required.'),
+      state: z.enum(['success', 'failure'])
+    }),
+    execute: async ({ taskId, state }) => {
+      log.info('[Tool] Complete Task', { chatId, taskId, state })
+
+      try {
+        const chatService = new ChatService()
+        const updatedChat = await chatService.completeTask(chatId, taskId, state)
+
+        return {
+          chat: updatedChat,
+          message: `Task completed with state: ${state}`
+        }
+      } catch (error) {
+        console.error('Error completing task:', error)
+        return { error: 'Failed to complete task. Please try again later.' }
+      }
+    }
+  })
+
+const createListTasksTool = (chatId: string) =>
+  tool({
+    description: 'List all tasks in the current chat conversation.',
+    inputSchema: z.object({}),
+    execute: async () => {
+      log.info('[Tool] List Tasks', { chatId })
+
+      try {
+        const chatService = new ChatService()
+        const chat = await chatService.find(chatId)
+
+        if (!chat) {
+          return { error: 'Chat not found. Please try again later.' }
+        }
+
+        return {
+          tasks: chat.tasks,
+          message: `Found ${chat.tasks.length} task(s) in chat`
+        }
+      } catch (error) {
+        console.error('Error listing tasks:', error)
+        return { error: 'Failed to list tasks. Please try again later.' }
       }
     }
   })
@@ -288,13 +398,17 @@ const waitForDeployment = tool({
 })
 
 export const createTools = (chatId: string): ToolSet => ({
+  completeTask: createCompleteTaskTool(chatId),
   createService,
+  createTask: createTaskTool(chatId),
   generateDomain,
   getServiceDeployment,
   listEnvironments,
   listProjects,
   listServices,
+  listTasks: createListTasksTool(chatId),
   updateChatTitle: createUpdateChatTitleTool(chatId),
+  updateTask: createUpdateTaskTool(chatId),
   waitForDeployment
 })
 
