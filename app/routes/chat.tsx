@@ -237,9 +237,14 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
             className="absolute inset-0 bg-black/20 backdrop-blur-sm"
             onClick={() => setIsMobileTasksOpen(false)}
           />
-          <div className="absolute right-0 top-0 h-full w-80 max-w-[90vw] bg-gray-50/50 border-l">
-            <div className="flex items-center justify-between p-4 border-b bg-white">
-              <h2 className="font-semibold text-lg">Tasks</h2>
+          <div className="absolute right-0 top-0 h-full w-80 max-w-[90vw] bg-gray-50/50 border-l flex flex-col">
+            <div className="flex-shrink-0 flex items-center justify-between p-4 border-b bg-white">
+              <div>
+                <h2 className="font-semibold text-lg">Tasks</h2>
+                <p className="text-sm text-muted-foreground">
+                  {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                </p>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -248,7 +253,7 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="h-full overflow-hidden pb-16">
+            <div className="flex-1 min-h-0">
               <TaskList tasks={tasks} isMobile />
             </div>
           </div>
@@ -312,9 +317,9 @@ function AssistantMessage({ message }: { message: UIMessage }): ReactElement {
 
 function TaskList({ tasks, isMobile = false }: { tasks: Task[]; isMobile?: boolean }): ReactElement {
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {!isMobile && (
-        <div className="p-4 border-b bg-white">
+        <div className="flex-shrink-0 p-4 border-b bg-white">
           <h2 className="font-semibold text-lg">Tasks</h2>
           <p className="text-sm text-muted-foreground">
             {tasks.length} task{tasks.length !== 1 ? 's' : ''}
@@ -322,21 +327,27 @@ function TaskList({ tasks, isMobile = false }: { tasks: Task[]; isMobile?: boole
         </div>
       )}
       
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
-          {tasks.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <Clock className="mx-auto h-12 w-12 mb-2 opacity-50" />
-              <p className="text-sm">No tasks yet</p>
-              <p className="text-xs">Tasks will appear here as work begins</p>
-            </div>
-          ) : (
-            tasks.map((task) => (
-              <TaskItem key={task.id} task={task} />
-            ))
-          )}
-        </div>
-      </ScrollArea>
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-3">
+            {tasks.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <Clock className="mx-auto h-12 w-12 mb-2 opacity-50" />
+                <p className="text-sm">No tasks yet</p>
+                <p className="text-xs">Tasks will appear here as work begins</p>
+              </div>
+            ) : (
+              <>
+                {tasks.map((task) => (
+                  <TaskItem key={task.id} task={task} />
+                ))}
+                {/* Add some bottom padding for mobile */}
+                {isMobile && <div className="pb-4" />}
+              </>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   )
 }
