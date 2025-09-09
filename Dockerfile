@@ -1,21 +1,21 @@
-# Use the official Bun image
-FROM oven/bun:1
+# Use Node.js 24 for better React Router SSR compatibility
+FROM node:24-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY package.json bun.lock ./
+COPY package.json ./
 
-# Install dependencies
-RUN bun install --frozen-lockfile
+# Install dependencies with npm
+RUN npm install
 
 # Copy source code
 COPY . .
 
 # Build the app
 ENV NODE_ENV=production
-RUN bun run build
+RUN npm run build
 
 # Expose port
 EXPOSE 3000
@@ -23,6 +23,5 @@ EXPOSE 3000
 # Set environment variables
 ENV PORT=3000
 
-# Run the app
-USER bun
-CMD ["bun", "run", "start"]
+# Run the app with Node.js for better SSR compatibility
+CMD ["node", "./build/server/index.js"]
