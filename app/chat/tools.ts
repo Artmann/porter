@@ -49,7 +49,20 @@ const createService = tool({
         source
       )
 
-      return service
+      // Extract the latest deployment ID if available
+      let latestDeploymentId = null
+      if (service.deployments?.edges?.length > 0) {
+        // Get the most recent deployment (first in the array as they're typically ordered by creation time)
+        latestDeploymentId = service.deployments.edges[0].node.id
+      }
+
+      return {
+        ...service,
+        latestDeploymentId,
+        message: latestDeploymentId 
+          ? `Service created successfully. Latest deployment ID: ${latestDeploymentId}`
+          : 'Service created successfully. No deployment initiated yet.'
+      }
     } catch (error) {
       console.error('Error creating service:', error)
 
@@ -161,9 +174,38 @@ const waitForDeployment = tool({
   }
 })
 
+const getServiceDeployment = tool({
+  description: 'Get the latest deployment ID for a Railway service.',
+  inputSchema: z.object({
+    serviceId: z.string().min(1, 'Service ID is required.')
+  }),
+  execute: async ({ serviceId }) => {
+    log.info('[Tool] Get Service Deployment', { serviceId })
+
+    try {
+      const deploymentId = await createRailwayClient().getLatestDeploymentForService(serviceId)
+
+      if (!deploymentId) {
+        return { 
+          error: 'No deployments found for this service yet. Deployments may take a moment to initiate after service creation.' 
+        }
+      }
+
+      return {
+        deploymentId,
+        message: `Latest deployment ID for service: ${deploymentId}`
+      }
+    } catch (error) {
+      console.error('Error getting service deployment:', error)
+      return { error: 'Failed to get service deployment. Please try again later.' }
+    }
+  }
+})
+
 export const tools: ToolSet = {
   createService,
   listProjects,
   listServices,
-  waitForDeployment
+  waitForDeployment,
+  getServiceDeployment
 }

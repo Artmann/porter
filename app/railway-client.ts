@@ -12,7 +12,15 @@ export interface RailwayProject {
 export interface RailwayService {
   createdAt: string
   deletedAt: string | null
-  deployments: RailwayDeployment[]
+  deployments?: {
+    edges: Array<{
+      node: {
+        id: string
+        status: string
+        createdAt: string
+      }
+    }>
+  } | RailwayDeployment[]
   id: string
   name: string
   projectId: string
@@ -101,6 +109,36 @@ export class RailwayClient {
 
     return data.deployment as RailwayDeployment
   }
+
+  async getLatestDeploymentForService(
+    serviceId: string
+  ): Promise<string | null> {
+    const query = `
+      query getServiceDeployments($serviceId: String!) {
+        service(id: $serviceId) {
+          deployments(first: 1) {
+            edges {
+              node {
+                id
+                status
+                createdAt
+              }
+            }
+          }
+        }
+      }
+    `
+
+    const data = await this.graphQlClient.request<any>(query, {
+      serviceId
+    })
+
+    if (!data.service?.deployments?.edges?.length) {
+      return null
+    }
+
+    return data.service.deployments.edges[0].node.id
+  }
 }
 
 const createServiceMutation = `
@@ -117,6 +155,15 @@ const createServiceMutation = `
       name
       projectId
       updatedAt
+      deployments {
+        edges {
+          node {
+            id
+            status
+            createdAt
+          }
+        }
+      }
     }
   }
 `
