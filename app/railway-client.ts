@@ -12,17 +12,7 @@ export interface RailwayProject {
 export interface RailwayService {
   createdAt: string
   deletedAt: string | null
-  deployments?:
-    | {
-        edges: Array<{
-          node: {
-            id: string
-            status: string
-            createdAt: string
-          }
-        }>
-      }
-    | RailwayDeployment[]
+  deployments: RailwayDeployment[]
   id: string
   name: string
   projectId: string
@@ -67,7 +57,11 @@ export class RailwayClient {
       source
     })
 
-    return data.serviceCreate as RailwayService
+    const service = data.serviceCreate
+    return {
+      ...service,
+      deployments: service.deployments?.edges?.map((e: any) => e.node) || []
+    }
   }
 
   async listProjects(): Promise<RailwayProject[]> {

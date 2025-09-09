@@ -51,9 +51,8 @@ const createService = tool({
 
       // Extract the latest deployment ID if available
       let latestDeploymentId = null
-      if (service.deployments?.edges?.length > 0) {
-        // Get the most recent deployment (first in the array as they're typically ordered by creation time)
-        latestDeploymentId = service.deployments.edges[0].node.id
+      if (service.deployments.length > 0) {
+        latestDeploymentId = service.deployments[0].id
       }
 
       return {
