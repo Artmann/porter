@@ -23,6 +23,7 @@ cp env.example .env
 ### 3. Configure API keys
 
 Open `.env` and fill in your API keys:
+
 - `OPENAI_API_KEY` - Your OpenAI API key
 - `RAILWAY_API_TOKEN` - Your Railway API token
 
@@ -34,7 +35,8 @@ Use Docker Compose to start MongoDB:
 docker compose up -d
 ```
 
-This will start MongoDB on port 27018 (to avoid conflicts with existing MongoDB instances).
+This will start MongoDB on port 27018 (to avoid conflicts with existing MongoDB
+instances).
 
 ### 5. Start the development server
 

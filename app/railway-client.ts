@@ -12,15 +12,17 @@ export interface RailwayProject {
 export interface RailwayService {
   createdAt: string
   deletedAt: string | null
-  deployments?: {
-    edges: Array<{
-      node: {
-        id: string
-        status: string
-        createdAt: string
+  deployments?:
+    | {
+        edges: Array<{
+          node: {
+            id: string
+            status: string
+            createdAt: string
+          }
+        }>
       }
-    }>
-  } | RailwayDeployment[]
+    | RailwayDeployment[]
   id: string
   name: string
   projectId: string

@@ -59,7 +59,7 @@ const createService = tool({
       return {
         ...service,
         latestDeploymentId,
-        message: latestDeploymentId 
+        message: latestDeploymentId
           ? `Service created successfully. Latest deployment ID: ${latestDeploymentId}`
           : 'Service created successfully. No deployment initiated yet.'
       }
@@ -183,11 +183,13 @@ const getServiceDeployment = tool({
     log.info('[Tool] Get Service Deployment', { serviceId })
 
     try {
-      const deploymentId = await createRailwayClient().getLatestDeploymentForService(serviceId)
+      const deploymentId =
+        await createRailwayClient().getLatestDeploymentForService(serviceId)
 
       if (!deploymentId) {
-        return { 
-          error: 'No deployments found for this service yet. Deployments may take a moment to initiate after service creation.' 
+        return {
+          error:
+            'No deployments found for this service yet. Deployments may take a moment to initiate after service creation.'
         }
       }
 
@@ -197,7 +199,9 @@ const getServiceDeployment = tool({
       }
     } catch (error) {
       console.error('Error getting service deployment:', error)
-      return { error: 'Failed to get service deployment. Please try again later.' }
+      return {
+        error: 'Failed to get service deployment. Please try again later.'
+      }
     }
   }
 })

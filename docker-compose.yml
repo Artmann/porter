@@ -6,7 +6,7 @@ services:
     container_name: porter-mongodb
     restart: unless-stopped
     ports:
-      - "27018:27017"  # Using port 27018 to avoid conflict with existing MongoDB
+      - '27018:27017' # Using port 27018 to avoid conflict with existing MongoDB
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password123
