@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { tools } from './tools'
+import { tools, createTools } from './tools'
 import invariant from 'tiny-invariant'
 
 const mockRailwayClient = {
@@ -11,8 +11,16 @@ const mockRailwayClient = {
   createServiceDomain: vi.fn()
 }
 
+const mockChatService = {
+  updateTitle: vi.fn()
+}
+
 vi.mock('~/railway-client', () => ({
   RailwayClient: vi.fn().mockImplementation(() => mockRailwayClient)
+}))
+
+vi.mock('~/chat/chat-service.server', () => ({
+  ChatService: vi.fn().mockImplementation(() => mockChatService)
 }))
 
 describe('Chat Tools', () => {
@@ -670,6 +678,103 @@ describe('Chat Tools', () => {
       // Should return error object when env var is missing
       expect(result).toHaveProperty('error')
       expect(result.error).toContain('Failed to fetch projects')
+    })
+  })
+
+  describe('updateChatTitle tool', () => {
+    it('should update chat title successfully', async () => {
+      const mockUpdatedChat = {
+        id: 'chat-123',
+        title: 'Deploy Django App',
+        messages: []
+      }
+
+      vi.mocked(mockChatService.updateTitle).mockResolvedValue(mockUpdatedChat)
+
+      const toolsWithChatId = createTools('chat-123')
+
+      invariant(
+        toolsWithChatId.updateChatTitle.execute,
+        'updateChatTitle tool is not defined'
+      )
+
+      const result = await toolsWithChatId.updateChatTitle.execute(
+        {
+          title: 'Deploy Django App'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        chat: mockUpdatedChat,
+        message: 'Chat title updated to: "Deploy Django App"'
+      })
+      expect(mockChatService.updateTitle).toHaveBeenCalledWith(
+        'chat-123',
+        'Deploy Django App'
+      )
+    })
+
+    it('should handle ChatService errors', async () => {
+      vi.mocked(mockChatService.updateTitle).mockRejectedValue(
+        new Error('Chat not found')
+      )
+
+      const toolsWithChatId = createTools('invalid-chat-id')
+
+      invariant(
+        toolsWithChatId.updateChatTitle.execute,
+        'updateChatTitle tool is not defined'
+      )
+
+      const result = await toolsWithChatId.updateChatTitle.execute(
+        {
+          title: 'New Title'
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toEqual({
+        error: 'Failed to update chat title. Please try again later.'
+      })
+    })
+
+    it('should validate title is required', async () => {
+      const toolsWithChatId = createTools('chat-123')
+
+      invariant(
+        toolsWithChatId.updateChatTitle.execute,
+        'updateChatTitle tool is not defined'
+      )
+
+      const result = await toolsWithChatId.updateChatTitle.execute(
+        {
+          title: ''
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toHaveProperty('error')
+    })
+
+    it('should validate title length limit', async () => {
+      const toolsWithChatId = createTools('chat-123')
+
+      invariant(
+        toolsWithChatId.updateChatTitle.execute,
+        'updateChatTitle tool is not defined'
+      )
+
+      const longTitle = 'a'.repeat(101) // 101 characters, exceeding 100 char limit
+
+      const result = await toolsWithChatId.updateChatTitle.execute(
+        {
+          title: longTitle
+        },
+        mockToolCallOptions
+      )
+
+      expect(result).toHaveProperty('error')
     })
   })
 })

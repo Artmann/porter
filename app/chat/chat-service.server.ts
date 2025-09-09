@@ -45,6 +45,25 @@ export class ChatService {
     return this.transformChat(chat)
   }
 
+  async updateTitle(id: string, title: string): Promise<ChatDto> {
+    log.info(`Updating the title for chat ${id} to "${title}".`)
+
+    invariant(id, 'Chat ID is required')
+    invariant(title, 'Title is required')
+
+    const chat = await Chat.find(id)
+
+    if (!chat) {
+      throw new Error('Chat not found')
+    }
+
+    chat.title = title
+
+    await chat.save()
+
+    return this.transformChat(chat)
+  }
+
   private transformChat(chat: Chat): ChatDto {
     return {
       id: chat.id,

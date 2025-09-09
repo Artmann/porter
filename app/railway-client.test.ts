@@ -302,7 +302,8 @@ describe('RailwayClient', () => {
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
         projectId: projectId,
-        updatedAt: '2024-01-01T00:00:00Z'
+        updatedAt: '2024-01-01T00:00:00Z',
+        deployments: []
       })
 
       expect(mockGraphQLClient.request).toHaveBeenCalledWith(
@@ -336,7 +337,8 @@ describe('RailwayClient', () => {
         createdAt: '2024-01-01T00:00:00Z',
         deletedAt: null,
         projectId: projectId,
-        updatedAt: '2024-01-01T00:00:00Z'
+        updatedAt: '2024-01-01T00:00:00Z',
+        deployments: []
       })
 
       expect(mockGraphQLClient.request).toHaveBeenCalledWith(

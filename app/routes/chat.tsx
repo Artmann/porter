@@ -32,6 +32,14 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return { chat, initialPrompt }
 }
 
+export function meta({ data }: Route.MetaArgs) {
+  return [
+    {
+      title: data?.chat?.title ? `${data.chat.title} - Porter` : 'Porter'
+    }
+  ]
+}
+
 export default function ChatRoute({ loaderData }: Route.ComponentProps) {
   const { messages, sendMessage, status } = useChat({
     id: loaderData?.chat?.id,
@@ -104,6 +112,41 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
   useEffect(() => {
     scrollToTheBottomOfTheMessages()
   }, [scrollToTheBottomOfTheMessages])
+
+  // Poll for chat title updates
+  useEffect(() => {
+    if (!loaderData?.chat?.id) {
+      return
+    }
+
+    const pollInterval = 5000 // Poll every 5 seconds
+    let intervalId: NodeJS.Timeout
+
+    const pollForUpdates = async () => {
+      try {
+        const response = await fetch(`/api/chats/${loaderData.chat!.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.chat.title !== loaderData.chat!.title) {
+            // Update document title
+            document.title = `${data.chat.title} - Porter`
+          }
+        }
+      } catch (error) {
+        // Silently handle polling errors
+        console.warn('Failed to poll for chat updates:', error)
+      }
+    }
+
+    intervalId = setInterval(pollForUpdates, pollInterval)
+
+    // Clean up interval on unmount
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
+    }
+  }, [loaderData?.chat?.id, loaderData?.chat?.title])
 
   if (!loaderData?.chat) {
     return (

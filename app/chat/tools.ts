@@ -3,6 +3,7 @@ import invariant from 'tiny-invariant'
 import { log } from 'tiny-typescript-logger'
 import { z } from 'zod'
 
+import { ChatService } from '~/chat/chat-service.server'
 import { GraphQLClient } from '~/graphql-client'
 import { RailwayClient } from '~/railway-client'
 
@@ -70,6 +71,33 @@ const createService = tool({
   }
 })
 
+const createUpdateChatTitleTool = (chatId: string) =>
+  tool({
+    description: 'Update the title of the current chat conversation.',
+    inputSchema: z.object({
+      title: z
+        .string()
+        .min(1, 'Title is required.')
+        .max(100, 'Title must be 100 characters or less.')
+    }),
+    execute: async ({ title }) => {
+      log.info('[Tool] Update Chat Title', { chatId, title })
+
+      try {
+        const chatService = new ChatService()
+        const updatedChat = await chatService.updateTitle(chatId, title)
+
+        return {
+          chat: updatedChat,
+          message: `Chat title updated to: "${title}"`
+        }
+      } catch (error) {
+        console.error('Error updating chat title:', error)
+        return { error: 'Failed to update chat title. Please try again later.' }
+      }
+    }
+  })
+
 const listProjects = tool({
   description: 'List all your Railway projects.',
   inputSchema: z.object({}),
@@ -104,71 +132,6 @@ const listServices = tool({
       console.error('Error listing services:', error)
 
       return { error: 'Failed to fetch services. Please try again later.' }
-    }
-  }
-})
-
-const waitForDeployment = tool({
-  description:
-    'Wait for a Railway deployment to finish and return its final status.',
-  inputSchema: z.object({
-    deploymentId: z.string().min(1, 'Deployment ID is required.'),
-    maxWaitTime: z.number().optional().default(300) // 5 minutes default
-  }),
-  execute: async ({ deploymentId, maxWaitTime }) => {
-    log.info('[Tool] Wait for Deployment', { deploymentId, maxWaitTime })
-
-    try {
-      const startTime = Date.now()
-      const maxWaitMs = maxWaitTime * 1000
-      const pollInterval = 5000 // Poll every 5 seconds
-
-      while (Date.now() - startTime < maxWaitMs) {
-        const deployment =
-          await createRailwayClient().findDeployment(deploymentId)
-
-        if (!deployment) {
-          return { error: 'Deployment not found.' }
-        }
-
-        // Check if deployment is in a terminal state
-        const terminalStates = [
-          'SUCCESS',
-          'FAILED',
-          'CANCELLED',
-          'CRASHED',
-          'REMOVED'
-        ]
-        if (terminalStates.includes(deployment.status)) {
-          log.info('[Tool] Deployment finished', {
-            deploymentId,
-            status: deployment.status,
-            url: deployment.url
-          })
-
-          return {
-            deployment,
-            success: deployment.status === 'SUCCESS',
-            message:
-              deployment.status === 'SUCCESS'
-                ? `Deployment completed successfully. URL: ${deployment.url || 'No URL available yet'}`
-                : `Deployment failed with status: ${deployment.status}`
-          }
-        }
-
-        // Wait before polling again
-        await new Promise((resolve) => setTimeout(resolve, pollInterval))
-      }
-
-      return {
-        error: `Deployment did not complete within ${maxWaitTime} seconds.`,
-        timeout: true
-      }
-    } catch (error) {
-      console.error('Error waiting for deployment:', error)
-      return {
-        error: 'Failed to check deployment status. Please try again later.'
-      }
     }
   }
 })
@@ -260,12 +223,87 @@ const listEnvironments = tool({
   }
 })
 
-export const tools: ToolSet = {
+const waitForDeployment = tool({
+  description:
+    'Wait for a Railway deployment to finish and return its final status.',
+  inputSchema: z.object({
+    deploymentId: z.string().min(1, 'Deployment ID is required.'),
+    maxWaitTime: z.number().optional().default(300) // 5 minutes default
+  }),
+  execute: async ({ deploymentId, maxWaitTime }) => {
+    log.info('[Tool] Wait for Deployment', { deploymentId, maxWaitTime })
+
+    try {
+      const startTime = Date.now()
+      const maxWaitMs = maxWaitTime * 1000
+      const pollInterval = 5000 // Poll every 5 seconds
+
+      while (Date.now() - startTime < maxWaitMs) {
+        const deployment =
+          await createRailwayClient().findDeployment(deploymentId)
+
+        if (!deployment) {
+          return { error: 'Deployment not found.' }
+        }
+
+        // Check if deployment is in a terminal state
+        const terminalStates = [
+          'SUCCESS',
+          'FAILED',
+          'CANCELLED',
+          'CRASHED',
+          'REMOVED'
+        ]
+        if (terminalStates.includes(deployment.status)) {
+          log.info('[Tool] Deployment finished', {
+            deploymentId,
+            status: deployment.status,
+            url: deployment.url
+          })
+
+          return {
+            deployment,
+            success: deployment.status === 'SUCCESS',
+            message:
+              deployment.status === 'SUCCESS'
+                ? `Deployment completed successfully. URL: ${deployment.url || 'No URL available yet'}`
+                : `Deployment failed with status: ${deployment.status}`
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, pollInterval))
+      }
+
+      return {
+        error: `Deployment did not complete within ${maxWaitTime} seconds.`,
+        timeout: true
+      }
+    } catch (error) {
+      console.error('Error waiting for deployment:', error)
+      return {
+        error: 'Failed to check deployment status. Please try again later.'
+      }
+    }
+  }
+})
+
+export const createTools = (chatId: string): ToolSet => ({
   createService,
+  generateDomain,
+  getServiceDeployment,
+  listEnvironments,
   listProjects,
   listServices,
-  waitForDeployment,
-  getServiceDeployment,
+  updateChatTitle: createUpdateChatTitleTool(chatId),
+  waitForDeployment
+})
+
+export const tools: ToolSet = {
+  createService,
   generateDomain,
-  listEnvironments
+  getServiceDeployment,
+  listEnvironments,
+  listProjects,
+  listServices,
+  waitForDeployment
 }

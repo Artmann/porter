@@ -11,7 +11,7 @@ import { data } from 'react-router'
 
 import type { Route } from './+types/messages'
 import { ChatService } from '~/chat/chat-service.server'
-import { tools } from '~/chat/tools'
+import { createTools } from '~/chat/tools'
 
 export async function action({ request }: Route.ActionArgs) {
   const { id, messages } = await request.json()
@@ -24,13 +24,14 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const validatedMessages = await validateMessages(messages)
+  const toolsWithChatId = createTools(id)
 
   const result = streamText({
     messages: convertToModelMessages(validatedMessages),
     model: openai('gpt-4.1'),
-    system: createSystemPrompt(tools),
+    system: createSystemPrompt(toolsWithChatId),
     stopWhen: stepCountIs(10),
-    tools
+    tools: toolsWithChatId
   })
 
   return result.toUIMessageStreamResponse({
@@ -62,6 +63,7 @@ const createSystemPrompt = (tools: ToolSet) => `
   - Before starting, create a todo list of steps you need to take to complete the user's request.
   - Be concise and to the point.
   - Only ask for confirmation for destructive actions.
+  - IMPORTANT: When you start working on a task, immediately update the chat title to reflect what you're working on using the updateChatTitle tool. Use descriptive titles like "Deploy Django App" or "Create 2048 Game Service".
 
   You have access to the following tools:
   ${Object.keys(tools)
