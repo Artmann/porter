@@ -1,7 +1,6 @@
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, type UIMessage } from 'ai'
 import {
-  forwardRef,
   memo,
   useCallback,
   useEffect,
@@ -58,7 +57,7 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
       top: chatMessagesRef.current.scrollHeight,
       behavior: 'smooth'
     })
-  }, [chatMessagesRef])
+  }, [])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -72,7 +71,7 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
         formRef.current?.requestSubmit()
       }
     },
-    [formRef]
+    []
   )
 
   const handleSubmit = useCallback(
@@ -104,7 +103,7 @@ export default function ChatRoute({ loaderData }: Route.ComponentProps) {
 
   useEffect(() => {
     scrollToTheBottomOfTheMessages()
-  }, [])
+  }, [scrollToTheBottomOfTheMessages])
 
   if (!loaderData?.chat) {
     return (
